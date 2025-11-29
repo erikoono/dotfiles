@@ -40,30 +40,44 @@ error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# ユーザー確認関数
+ask_yes_no() {
+    local question=$1
+    read -r -p "$question (y/n) " response
+    [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
+}
+
 # バックアップから復元する関数
 restore_from_backup() {
     local file=$1
 
-    # 最新のバックアップファイルを検索
-    local latest_backup=$(ls -t "${file}.backup."* 2>/dev/null | head -n 1)
+    # バックアップファイルを新しい順に取得
+    local all_backups
+    all_backups=$(ls -t "${file}.backup."* 2>/dev/null)
 
-    if [ -n "$latest_backup" ]; then
-        info "バックアップから復元しています: $latest_backup"
-        mv "$latest_backup" "$file"
-        success "復元が完了しました: $file"
-
-        # 他のバックアップファイルを削除するか確認
-        local other_backups=$(ls -t "${file}.backup."* 2>/dev/null | tail -n +2)
-        if [ -n "$other_backups" ]; then
-            echo ""
-            read -r -p "他のバックアップファイルも削除しますか? (y/n) " response
-            if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-                echo "$other_backups" | xargs rm -f
-                success "他のバックアップファイルを削除しました"
-            fi
-        fi
-    else
+    if [ -z "$all_backups" ]; then
         warning "バックアップファイルが見つかりませんでした: ${file}.backup.*"
+        return
+    fi
+
+    # 最新のバックアップを復元
+    local latest_backup
+    latest_backup=$(echo "$all_backups" | head -n 1)
+    info "バックアップから復元しています: $latest_backup"
+    mv "$latest_backup" "$file"
+    success "復元が完了しました: $file"
+
+    # 他のバックアップファイルを削除するか確認
+    local other_backups
+    other_backups=$(echo "$all_backups" | tail -n +2)
+    if [ -n "$other_backups" ]; then
+        echo ""
+        if ask_yes_no "他のバックアップファイルも削除しますか?"; then
+            echo "$other_backups" | while IFS= read -r backup_to_delete; do
+                rm -f "$backup_to_delete"
+            done
+            success "他のバックアップファイルを削除しました"
+        fi
     fi
 }
 
@@ -75,8 +89,7 @@ echo ""
 warning "この操作により、setup.shで設定した内容が削除されます"
 warning "バックアップがある場合は、そこから復元されます"
 echo ""
-read -r -p "本当にリセットしますか? (y/n) " response
-if [[ ! "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+if ! ask_yes_no "本当にリセットしますか?"; then
     info "リセットをキャンセルしました"
     exit 0
 fi
@@ -99,8 +112,7 @@ echo ""
 # 2. local.zshの削除
 info "local.zshの削除を確認中..."
 if [ -f "$DOTFILES_DIR/zsh/local.zsh" ]; then
-    read -r -p "local.zshを削除しますか? (y/n) " response
-    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    if ask_yes_no "local.zshを削除しますか?"; then
         rm -f "$DOTFILES_DIR/zsh/local.zsh"
         success "local.zshを削除しました"
     else
@@ -113,8 +125,7 @@ echo ""
 
 # 3. Zshプラグインの削除
 info "Zshプラグインの削除を確認中..."
-read -r -p "Zshプラグイン(zsh-autosuggestions, zsh-syntax-highlighting)を削除しますか? (y/n) " response
-if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+if ask_yes_no "Zshプラグイン(zsh-autosuggestions, zsh-syntax-highlighting)を削除しますか?"; then
     # zsh-autosuggestions
     if [ -d "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions" ]; then
         rm -rf "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
@@ -140,8 +151,7 @@ info "Oh My Zshのアンインストールを確認中..."
 if [ -d "$HOME/.oh-my-zsh" ]; then
     echo ""
     warning "注意: Oh My Zshをアンインストールすると、カスタムテーマやプラグインも削除されます"
-    read -r -p "Oh My Zshをアンインストールしますか? (y/n) " response
-    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    if ask_yes_no "Oh My Zshをアンインストールしますか?"; then
         info "Oh My Zshをアンインストールしています..."
         # Oh My Zshの公式アンインストールスクリプトを使用
         if [ -f "$HOME/.oh-my-zsh/tools/uninstall.sh" ]; then
@@ -165,8 +175,7 @@ OS_TYPE="$(uname -s)"
 if [[ "$OS_TYPE" == "Darwin" ]] && command -v brew &> /dev/null; then
     info "fzfのアンインストールを確認中..."
     if command -v fzf &> /dev/null; then
-        read -r -p "fzfをアンインストールしますか? (y/n) " response
-        if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        if ask_yes_no "fzfをアンインストールしますか?"; then
             info "fzfをアンインストールしています..."
             brew uninstall fzf || true
 
@@ -192,8 +201,7 @@ if [[ "$OS_TYPE" == "Darwin" ]] && command -v brew &> /dev/null; then
     # 6. Nerd Fontsのアンインストール (macOSのみ)
     info "Nerd Fontsのアンインストールを確認中..."
     if brew list --cask font-meslo-lg-nerd-font &> /dev/null; then
-        read -r -p "Meslo Nerd Fontをアンインストールしますか? (y/n) " response
-        if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        if ask_yes_no "Meslo Nerd Fontをアンインストールしますか?"; then
             info "Meslo Nerd Fontをアンインストールしています..."
             brew uninstall --cask font-meslo-lg-nerd-font || true
             success "Meslo Nerd Fontのアンインストールが完了しました"
@@ -211,18 +219,17 @@ fi
 if [[ "$OS_TYPE" == "Darwin" ]] && [[ $(uname -m) == "arm64" ]]; then
     info "~/.zprofileの確認..."
     if [ -f "$HOME/.zprofile" ]; then
-        if grep -q "/opt/homebrew/bin/brew shellenv" "$HOME/.zprofile"; then
+        if grep -q '^eval "$(/opt/homebrew/bin/brew shellenv)"$' "$HOME/.zprofile"; then
             echo ""
             warning "~/.zprofileにHomebrewのパス設定が含まれています"
             info "以下の行が見つかりました:"
-            grep "/opt/homebrew/bin/brew shellenv" "$HOME/.zprofile"
+            grep '^eval "$(/opt/homebrew/bin/brew shellenv)"$' "$HOME/.zprofile"
             echo ""
-            read -r -p "この設定を削除しますか? (y/n) " response
-            if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+            if ask_yes_no "この設定を削除しますか?"; then
                 # バックアップを作成
                 cp "$HOME/.zprofile" "$HOME/.zprofile.backup.$(date +%Y%m%d_%H%M%S)"
                 # Homebrewの設定行を削除
-                sed -i.tmp '/\/opt\/homebrew\/bin\/brew shellenv/d' "$HOME/.zprofile"
+                sed -i.tmp '/^eval "$(\\/opt\\/homebrew\\/bin\\/brew shellenv)"$/d' "$HOME/.zprofile"
                 rm -f "$HOME/.zprofile.tmp"
                 success "~/.zprofileからHomebrewのパス設定を削除しました"
             else
