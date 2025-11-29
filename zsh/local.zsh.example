@@ -1,0 +1,24 @@
+# ===================================
+# 環境依存の設定（テンプレート）
+# ===================================
+# このファイルを zsh/local.zsh にコピーして、
+# 環境固有の設定を追加してください。
+# local.zsh は .gitignore に含まれているため、
+# Git管理されません。
+#
+# 使い方:
+# cp ~/repository/dotfiles/zsh/local.zsh.example ~/repository/dotfiles/zsh/local.zsh
+# ===================================
+
+# 環境固有のPATH設定
+# 例: claude コマンドのパス
+export PATH="/Users/ERIKO/.local/bin:$PATH"
+
+# その他の環境変数
+# 例:
+# export HOMEBREW_PREFIX="/opt/homebrew"
+# export JAVA_HOME="/Library/Java/JavaVirtualMachines/..."
+
+# プライベートなエイリアス
+# 例:
+# alias work='cd ~/work/project'
