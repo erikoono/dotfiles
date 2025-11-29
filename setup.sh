@@ -50,30 +50,6 @@ backup_file() {
     fi
 }
 
-# シンボリックリンクを作成する関数
-create_symlink() {
-    local source=$1
-    local target=$2
-
-    if [ -L "$target" ]; then
-        info "シンボリックリンクが既に存在します: $target"
-        local current_link=$(readlink "$target")
-        if [ "$current_link" = "$source" ]; then
-            info "既に正しいリンクが設定されています"
-            return 0
-        else
-            warning "既存のシンボリックリンクを削除します"
-            rm "$target"
-        fi
-    elif [ -e "$target" ]; then
-        warning "既存のファイルが見つかりました: $target"
-        backup_file "$target"
-    fi
-
-    ln -s "$source" "$target"
-    success "シンボリックリンクを作成しました: $target -> $source"
-}
-
 echo ""
 echo "=========================================="
 echo "  Dotfiles セットアップを開始します"
@@ -85,8 +61,7 @@ info "Oh My Zshのインストールを確認中..."
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     warning "Oh My Zshがインストールされていません"
     echo ""
-    echo "Oh My Zshをインストールしますか? (y/n)"
-    read -r response
+    read -r -p "Oh My Zshをインストールしますか? (y/n) " response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         info "Oh My Zshをインストールしています..."
         sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
@@ -125,14 +100,12 @@ info "Nerd Fontsのインストールを確認中..."
 echo ""
 echo "Nerd Fontsをインストールしますか？"
 echo "（Oh My Zshのテーマやプラグインでアイコンを正しく表示するために推奨されます）"
-echo "(y/n)"
-read -r response
+read -r -p "(y/n) " response
 if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     # Homebrewのチェック
     if ! command -v brew &> /dev/null; then
         warning "Homebrewがインストールされていません"
-        echo "Homebrewをインストールしますか? (y/n)"
-        read -r brew_response
+        read -r -p "Homebrewをインストールしますか? (y/n) " brew_response
         if [[ "$brew_response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
             info "Homebrewをインストールしています..."
             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -140,6 +113,7 @@ if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
             # Apple Siliconの場合、PATHを設定
             if [[ $(uname -m) == "arm64" ]]; then
                 info "Apple Silicon用のPATHを設定しています..."
+                (echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"') >> "$HOME/.zprofile"
                 eval "$(/opt/homebrew/bin/brew shellenv)"
             fi
 
@@ -184,13 +158,52 @@ else
 fi
 echo ""
 
-# 4. .zshrcのシンボリックリンクを作成
+# 4. fzfのインストール
+info "fzfのインストールを確認中..."
+echo ""
+echo "fzf（ファジーファインダー）をインストールしますか？"
+echo "（コマンド履歴検索やファイル検索を高速化します）"
+read -r -p "(y/n) " response
+if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    # Homebrewがインストールされているか確認
+    if ! command -v brew &> /dev/null; then
+        warning "Homebrewがインストールされていません"
+        info "fzfをインストールするにはHomebrewが必要です"
+        warning "fzfのインストールをスキップします"
+    else
+        # fzfのインストール
+        if command -v fzf &> /dev/null; then
+            success "fzfは既にインストールされています"
+        else
+            info "fzfをインストールしています..."
+            brew install fzf
+            success "fzfのインストールが完了しました"
+        fi
+
+        # キーバインドとファジーコンプリートのセットアップ
+        info "fzfのキーバインドとファジーコンプリートをセットアップしています..."
+        "$(brew --prefix)"/opt/fzf/install --key-bindings --completion --no-update-rc --no-bash --no-fish
+        success "fzfのセットアップが完了しました"
+        echo ""
+        info "使用可能なキーバインド:"
+        echo "  Ctrl+R: コマンド履歴検索"
+        echo "  Ctrl+T: ファイル検索"
+        echo "  Alt+C:  ディレクトリ移動"
+        echo ""
+    fi
+else
+    info "fzfのインストールをスキップしました"
+    warning "後でインストールする場合は、以下を実行してください:"
+    echo "  brew install fzf"
+    echo "  \$(brew --prefix)/opt/fzf/install"
+fi
+echo ""
+
+# 5. .zshrcファイルを作成
 info "~/.zshrcのセットアップ中..."
 
-# まず、新しい.zshrcファイルを作成（シンボリックリンクではなく実ファイル）
-if [ -f "$HOME/.zshrc" ] && [ ! -L "$HOME/.zshrc" ]; then
-    backup_file "$HOME/.zshrc"
-fi
+# 既存ファイルをバックアップ
+backup_file "$HOME/.zshrc"
 
 cat > "$HOME/.zshrc" << EOF
 # ===================================
@@ -216,7 +229,7 @@ EOF
 
 success "~/.zshrcを作成しました"
 
-# 5. local.zshのセットアップ
+# 6. local.zshのセットアップ
 info "環境固有設定のセットアップ中..."
 if [ ! -f "$DOTFILES_DIR/zsh/local.zsh" ]; then
     cp "$DOTFILES_DIR/zsh/local.zsh.example" "$DOTFILES_DIR/zsh/local.zsh"
@@ -226,7 +239,7 @@ else
     info "local.zshは既に存在します"
 fi
 
-# 6. 完了メッセージ
+# 7. 完了メッセージ
 echo ""
 echo "=========================================="
 echo "  セットアップが完了しました！"
@@ -241,8 +254,7 @@ echo "     source ~/.zshrc"
 echo ""
 
 # オプション: 今すぐ設定を反映するか確認
-echo "今すぐ設定を反映しますか? (y/n)"
-read -r response
+read -r -p "今すぐ設定を反映しますか? (y/n) " response
 if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     exec zsh
 fi

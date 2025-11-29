@@ -59,6 +59,7 @@ chmod +x setup.sh
   - zsh-autosuggestions
   - zsh-syntax-highlighting
 - Nerd Fontsのインストール（オプション）
+- fzf（ファジーファインダー）のインストール（オプション）
 - `~/.zshrc` の作成（実際のクローン先パスを自動設定、既存ファイルはバックアップ）
 - `zsh/local.zsh` の初期化
 
@@ -105,8 +106,12 @@ brew install --cask font-meslo-lg-nerd-font
 ### 4. 環境固有設定のカスタマイズ
 
 ```bash
-# リポジトリをクローンした場所に応じて、パスを適宜変更してください
+# リポジトリをクローンした場所のパスを使用してください
+# 例: ~/dotfiles にクローンした場合
 vim ~/dotfiles/zsh/local.zsh
+
+# 別の場所にクローンした場合
+vim <クローンしたディレクトリ>/zsh/local.zsh
 ```
 
 環境固有のPATHやエイリアスを `local.zsh` に追加してください。
@@ -149,11 +154,20 @@ brew install --cask font-meslo-lg-nerd-font
 
 ターミナルの設定でインストールしたフォントを選択してください。
 
+### fzfのインストール（オプション）
+
+```bash
+brew install fzf
+
+# キーバインドとファジーコンプリートを有効化
+$(brew --prefix)/opt/fzf/install
+```
+
 ### 設定ファイルの準備
 
 ```bash
 # 変数: dotfilesをクローンしたディレクトリのパスを設定してください
-DOTFILES_DIR="$HOME/dotfiles"  # 例: ~/dotfiles にクローンした場合
+DOTFILES_DIR="<クローンしたディレクトリ>"  # 例: "$HOME/dotfiles" や "$HOME/path/to/dotfiles"
 
 # local.zshの作成
 cp $DOTFILES_DIR/zsh/local.zsh.example $DOTFILES_DIR/zsh/local.zsh

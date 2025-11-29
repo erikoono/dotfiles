@@ -11,8 +11,8 @@
 # ===================================
 
 # 環境固有のPATH設定
-# 例: claude コマンドのパス
-export PATH="/Users/ERIKO/.local/bin:$PATH"
+# 例: カスタムバイナリのパス
+export PATH="$HOME/.local/bin:$PATH"
 
 # その他の環境変数
 # 例:
