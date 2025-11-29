@@ -15,6 +15,7 @@ dotfiles/
 ├── .gitignore
 ├── README.md
 ├── setup.sh               # セットアップスクリプト
+├── reset.sh               # リセット/アンインストールスクリプト
 └── zsh/
     ├── common.zsh         # Oh My Zshの基本設定
     ├── plugins.zsh        # プラグイン固有の設定（fzf, autosuggestions等）
@@ -237,6 +238,69 @@ alias gs='git status'
 **注意**:
 - `setup.sh`はOSを自動検出し、macOS以外では一部機能（Nerd Fonts自動インストール）をスキップします
 - 既存の設定ファイルは自動的にバックアップされるため、安全に実行できます
+
+## 設定のリセット・アンインストール
+
+`setup.sh`で設定した内容を削除し、元の環境に戻したい場合は、`reset.sh`スクリプトを使用します。
+
+### リセットスクリプトの実行
+
+```bash
+chmod +x reset.sh
+./reset.sh
+```
+
+### リセット内容
+
+スクリプトは以下の項目を**インタラクティブに**確認しながら削除・復元します：
+
+#### 自動実行される項目
+- **~/.zshrcの復元**: バックアップファイルから最新のものを自動復元
+  - 複数のバックアップがある場合、古いものの削除も選択可能
+
+#### 確認される項目
+- **local.zshの削除**: 環境固有設定ファイルを削除するか確認
+- **Zshプラグインの削除**: zsh-autosuggestions、zsh-syntax-highlightingを削除するか確認
+- **Oh My Zshのアンインストール**: Oh My Zsh本体を削除するか確認
+  - 公式アンインストールスクリプトを使用
+  - カスタムテーマやプラグインも削除されます
+- **fzfのアンインストール** (macOSのみ): Homebrewでインストールしたfzfを削除するか確認
+  - `~/.fzf.zsh`などの設定ファイルも削除
+- **Nerd Fontsのアンインストール** (macOSのみ): Meslo Nerd Fontを削除するか確認
+- **~/.zprofileのクリーンアップ** (Apple Siliconのみ): Homebrewのパス設定を削除するか確認
+
+### 注意事項
+
+- バックアップファイルが見つからない場合は警告が表示されます
+- 各項目は個別に選択できるため、必要な部分だけリセット可能です
+- Oh My Zshをアンインストールすると、他のカスタマイズも削除される可能性があります
+- Nerd Fontsをアンインストールした場合、ターミナルのフォント設定を元に戻す必要があります
+
+### 手動でリセットする場合
+
+スクリプトを使用せずに手動でリセットする場合：
+
+```bash
+# 1. ~/.zshrcをバックアップから復元
+mv ~/.zshrc.backup.YYYYMMDD_HHMMSS ~/.zshrc
+
+# 2. Zshプラグインを削除
+rm -rf ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions
+rm -rf ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting
+
+# 3. Oh My Zshをアンインストール（オプション）
+~/.oh-my-zsh/tools/uninstall.sh
+
+# 4. fzfをアンインストール（macOS、オプション）
+brew uninstall fzf
+rm -f ~/.fzf.zsh ~/.fzf.bash
+
+# 5. Nerd Fontsをアンインストール（macOS、オプション）
+brew uninstall --cask font-meslo-lg-nerd-font
+
+# 6. local.zshを削除
+rm -f <クローンしたディレクトリ>/zsh/local.zsh
+```
 
 ## トラブルシューティング
 
