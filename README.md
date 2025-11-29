@@ -51,17 +51,28 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
-セットアップスクリプトは以下を自動的に実行します：
+セットアップスクリプトは以下を**インタラクティブに**実行します：
 
+#### 自動実行される項目
 - **クローン先ディレクトリの自動検出**（どこにクローンしても動作します）
-- Oh My Zshのインストール確認（未インストールの場合はインストール）
-- 必要なZshプラグインのインストール
+- Oh My Zshのインストール確認（未インストールの場合はインストールを確認）
+- 必要なZshプラグインの自動インストール
   - zsh-autosuggestions
   - zsh-syntax-highlighting
-- Nerd Fontsのインストール（オプション）
-- fzf（ファジーファインダー）のインストール（オプション）
-- `~/.zshrc` の作成（実際のクローン先パスを自動設定、既存ファイルはバックアップ）
+- `~/.zshrc` の作成（実際のクローン先パスを自動設定、既存ファイルは自動バックアップ）
 - `zsh/local.zsh` の初期化
+
+#### インタラクティブに確認される項目
+- **Oh My Zsh**: 未インストールの場合、インストールするか確認
+- **Nerd Fonts** (macOSのみ): Meslo Nerd Fontをインストールするか確認
+  - Homebrewが未インストールの場合、Homebrewのインストールも確認
+  - Linux/Unix環境では手動インストール方法を表示
+- **fzf** (ファジーファインダー): インストールするか確認
+  - インストール時にキーバインド（Ctrl+R, Ctrl+T, Alt+C）も自動設定
+  - Homebrewが必要（未インストールの場合はスキップ）
+- **設定の即時反映**: セットアップ完了後、すぐにZshを再起動するか確認
+
+**注意**: 既存の`~/.zshrc`がある場合、タイムスタンプ付きで自動バックアップされます（例: `~/.zshrc.backup.20250129_123456`）
 
 ### 3. Nerd Fontsのインストール（推奨）
 
@@ -156,12 +167,21 @@ brew install --cask font-meslo-lg-nerd-font
 
 ### fzfのインストール（オプション）
 
+fzfはコマンド履歴検索やファイル検索を高速化するファジーファインダーです。
+
 ```bash
 brew install fzf
 
 # キーバインドとファジーコンプリートを有効化
 $(brew --prefix)/opt/fzf/install
 ```
+
+インストール後、以下のキーバインドが使用可能になります：
+- **Ctrl+R**: コマンド履歴のファジー検索
+- **Ctrl+T**: カレントディレクトリ以下のファイルをファジー検索して挿入
+- **Alt+C**: サブディレクトリをファジー検索して移動
+
+**注意**: `setup.sh`を使用した場合、これらのキーバインドは自動的に設定されます。
 
 ### 設定ファイルの準備
 
@@ -205,11 +225,32 @@ alias gs='git status'
 
 別のマシンで設定を使用する場合：
 
-1. リポジトリをクローン
-2. `./setup.sh` を実行
-3. `zsh/local.zsh` を環境に合わせて編集
+1. リポジトリをクローン（任意のディレクトリで可）
+2. `chmod +x setup.sh && ./setup.sh` を実行
+3. インタラクティブな質問に答える
+   - Oh My Zshのインストール（必要な場合）
+   - Nerd Fontsのインストール（推奨）
+   - fzfのインストール（推奨）
+4. `zsh/local.zsh` を環境に合わせて編集
+5. 新しいターミナルを開くか `source ~/.zshrc` で設定を反映
+
+**注意**:
+- `setup.sh`はOSを自動検出し、macOS以外では一部機能（Nerd Fonts自動インストール）をスキップします
+- 既存の設定ファイルは自動的にバックアップされるため、安全に実行できます
 
 ## トラブルシューティング
+
+### バックアップファイルの復元
+
+`setup.sh`は既存の`~/.zshrc`を自動的にバックアップします。問題が発生した場合は復元できます：
+
+```bash
+# バックアップファイルを確認
+ls -la ~/.zshrc.backup.*
+
+# 最新のバックアップから復元（タイムスタンプを確認してください）
+mv ~/.zshrc.backup.20250129_123456 ~/.zshrc
+```
 
 ### 設定が反映されない場合
 
@@ -245,17 +286,36 @@ open /System/Applications/Font\ Book.app
 
 ### Homebrewが見つからない場合
 
-Homebrewをインストールしてください：
+`setup.sh`を使用している場合、Nerd Fontsやfzfのインストール時にHomebrewのインストールを確認されます。手動でインストールする場合：
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-インストール後、PATHを設定する必要がある場合があります（Apple Siliconの場合）：
+**Apple Siliconの場合**: `setup.sh`を使用した場合、PATHは自動的に設定されます。手動でインストールした場合は以下を実行：
 
 ```bash
 echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
 eval "$(/opt/homebrew/bin/brew shellenv)"
+```
+
+### macOS以外の環境での使用
+
+`setup.sh`はLinux/Unix環境でも動作しますが、以下の制限があります：
+
+- **Nerd Fonts**: 自動インストールはスキップされます（手動インストール方法が表示されます）
+- **fzf**: Homebrew経由のインストールはスキップされます（パッケージマネージャーで手動インストールが必要）
+
+Linux環境でのインストール例：
+```bash
+# Debian/Ubuntu
+sudo apt install fzf
+
+# Fedora
+sudo dnf install fzf
+
+# Arch Linux
+sudo pacman -S fzf
 ```
 
 ## ライセンス

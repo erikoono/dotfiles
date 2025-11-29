@@ -11,7 +11,7 @@
 #   ./setup.sh
 # ===================================
 
-set -e
+set -euo pipefail
 
 # 色付きの出力用
 RED='\033[0;31m'
@@ -78,18 +78,18 @@ fi
 info "Zshプラグインのインストールを確認中..."
 
 # zsh-autosuggestions
-if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions" ]; then
+if [ ! -d "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions" ]; then
     info "zsh-autosuggestionsをインストールしています..."
-    git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
+    git clone https://github.com/zsh-users/zsh-autosuggestions "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
     success "zsh-autosuggestionsのインストールが完了しました"
 else
     success "zsh-autosuggestionsは既にインストールされています"
 fi
 
 # zsh-syntax-highlighting
-if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting" ]; then
+if [ ! -d "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting" ]; then
     info "zsh-syntax-highlightingをインストールしています..."
-    git clone https://github.com/zsh-users/zsh-syntax-highlighting ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
+    git clone https://github.com/zsh-users/zsh-syntax-highlighting "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"
     success "zsh-syntax-highlightingのインストールが完了しました"
 else
     success "zsh-syntax-highlightingは既にインストールされています"
@@ -98,63 +98,89 @@ fi
 # 3. Nerd Fontsのインストール
 info "Nerd Fontsのインストールを確認中..."
 echo ""
-echo "Nerd Fontsをインストールしますか？"
-echo "（Oh My Zshのテーマやプラグインでアイコンを正しく表示するために推奨されます）"
-read -r -p "(y/n) " response
-if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    # Homebrewのチェック
-    if ! command -v brew &> /dev/null; then
-        warning "Homebrewがインストールされていません"
-        read -r -p "Homebrewをインストールしますか? (y/n) " brew_response
-        if [[ "$brew_response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-            info "Homebrewをインストールしています..."
-            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-            # Apple Siliconの場合、PATHを設定
-            if [[ $(uname -m) == "arm64" ]]; then
-                info "Apple Silicon用のPATHを設定しています..."
-                (echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"') >> "$HOME/.zprofile"
-                eval "$(/opt/homebrew/bin/brew shellenv)"
+# OS検出
+OS_TYPE="$(uname -s)"
+if [[ "$OS_TYPE" != "Darwin" ]]; then
+    warning "このシステムは macOS ではありません (検出: $OS_TYPE)"
+    warning "Nerd Fontsの自動インストールは macOS のみサポートしています"
+    echo ""
+    info "Linux/Unix環境では、以下の方法でフォントをインストールできます:"
+    echo "  1. https://www.nerdfonts.com/font-downloads からフォントをダウンロード"
+    echo "  2. ~/.local/share/fonts/ にフォントファイルをコピー"
+    echo "  3. fc-cache -fv を実行してフォントキャッシュを更新"
+    echo ""
+    info "Nerd Fontsのインストールをスキップします"
+else
+    echo "Nerd Fontsをインストールしますか？"
+    echo "（Oh My Zshのテーマやプラグインでアイコンを正しく表示するために推奨されます）"
+    read -r -p "(y/n) " response
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        # Homebrewのチェック
+        if ! command -v brew &> /dev/null; then
+            warning "Homebrewがインストールされていません"
+            read -r -p "Homebrewをインストールしますか? (y/n) " brew_response
+            if [[ "$brew_response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+                info "Homebrewをインストールしています..."
+                /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+                # Apple Siliconの場合、PATHを設定
+                if [[ $(uname -m) == "arm64" ]]; then
+                    info "Apple Silicon用のPATHを設定しています..."
+                    (echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"') >> "$HOME/.zprofile"
+                    eval "$(/opt/homebrew/bin/brew shellenv)"
+                fi
+
+                success "Homebrewのインストールが完了しました"
+            else
+                warning "Homebrewがないため、Nerd Fontsのインストールをスキップします"
+                info "手動でインストールする場合は、https://www.nerdfonts.com/ を参照してください"
+            fi
+        fi
+
+        # Homebrewがインストールされている場合、Nerd Fontsをインストール
+        if command -v brew &> /dev/null; then
+            info "Nerd Fontsをインストールしています..."
+
+            # フォントcaskリポジトリを追加（エラーハンドリング付き）
+            if brew tap homebrew/cask-fonts 2>/dev/null || true; then
+                success "homebrew/cask-fonts を追加しました"
+            else
+                warning "homebrew/cask-fonts の追加に失敗しましたが、続行します"
             fi
 
-            success "Homebrewのインストールが完了しました"
-        else
-            warning "Homebrewがないため、Nerd Fontsのインストールをスキップします"
-            info "手動でインストールする場合は、https://www.nerdfonts.com/ を参照してください"
+            # Meslo Nerd Fontをインストール（エラーハンドリング付き）
+            if brew list --cask font-meslo-lg-nerd-font &> /dev/null; then
+                success "Meslo Nerd Fontは既にインストールされています"
+            else
+                if brew install --cask font-meslo-lg-nerd-font 2>&1 || true; then
+                    # インストール成功確認
+                    if brew list --cask font-meslo-lg-nerd-font &> /dev/null; then
+                        success "Meslo Nerd Fontのインストールが完了しました"
+                    else
+                        error "Meslo Nerd Fontのインストールに失敗しました"
+                        warning "手動でインストールする場合は、https://www.nerdfonts.com/ を参照してください"
+                    fi
+                fi
+            fi
+
+            echo ""
+            info "フォントのセットアップが完了しました"
+            warning "ターミナルアプリの設定で 'MesloLGS NF' フォントを選択してください"
+            echo ""
+            echo "iTerm2の場合:"
+            echo "  Preferences (⌘,) → Profiles → Text → Font"
+            echo ""
+            echo "macOSターミナルの場合:"
+            echo "  環境設定 (⌘,) → プロファイル → テキスト → フォント"
+            echo ""
         fi
+    else
+        info "Nerd Fontsのインストールをスキップしました"
+        warning "後でインストールする場合は、以下を実行してください:"
+        echo "  brew tap homebrew/cask-fonts"
+        echo "  brew install --cask font-meslo-lg-nerd-font"
     fi
-
-    # Homebrewがインストールされている場合、Nerd Fontsをインストール
-    if command -v brew &> /dev/null; then
-        info "Nerd Fontsをインストールしています..."
-
-        # フォントcaskリポジトリを追加
-        brew tap homebrew/cask-fonts 2>/dev/null || true
-
-        # Meslo Nerd Fontをインストール
-        if brew list --cask font-meslo-lg-nerd-font &> /dev/null; then
-            success "Meslo Nerd Fontは既にインストールされています"
-        else
-            brew install --cask font-meslo-lg-nerd-font
-            success "Meslo Nerd Fontのインストールが完了しました"
-        fi
-
-        echo ""
-        info "フォントのインストールが完了しました"
-        warning "ターミナルアプリの設定で 'MesloLGS NF' フォントを選択してください"
-        echo ""
-        echo "iTerm2の場合:"
-        echo "  Preferences (⌘,) → Profiles → Text → Font"
-        echo ""
-        echo "macOSターミナルの場合:"
-        echo "  環境設定 (⌘,) → プロファイル → テキスト → フォント"
-        echo ""
-    fi
-else
-    info "Nerd Fontsのインストールをスキップしました"
-    warning "後でインストールする場合は、以下を実行してください:"
-    echo "  brew tap homebrew/cask-fonts"
-    echo "  brew install --cask font-meslo-lg-nerd-font"
 fi
 echo ""
 
@@ -171,25 +197,42 @@ if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         info "fzfをインストールするにはHomebrewが必要です"
         warning "fzfのインストールをスキップします"
     else
-        # fzfのインストール
+        # fzfのインストール（エラーハンドリング付き）
         if command -v fzf &> /dev/null; then
             success "fzfは既にインストールされています"
         else
             info "fzfをインストールしています..."
-            brew install fzf
-            success "fzfのインストールが完了しました"
+            if brew install fzf 2>&1 || true; then
+                # インストール成功確認
+                if command -v fzf &> /dev/null; then
+                    success "fzfのインストールが完了しました"
+                else
+                    error "fzfのインストールに失敗しました"
+                    warning "fzfのセットアップをスキップします"
+                fi
+            fi
         fi
 
-        # キーバインドとファジーコンプリートのセットアップ
-        info "fzfのキーバインドとファジーコンプリートをセットアップしています..."
-        "$(brew --prefix)"/opt/fzf/install --key-bindings --completion --no-update-rc --no-bash --no-fish
-        success "fzfのセットアップが完了しました"
-        echo ""
-        info "使用可能なキーバインド:"
-        echo "  Ctrl+R: コマンド履歴検索"
-        echo "  Ctrl+T: ファイル検索"
-        echo "  Alt+C:  ディレクトリ移動"
-        echo ""
+        # キーバインドとファジーコンプリートのセットアップ（fzfがインストールされている場合のみ）
+        if command -v fzf &> /dev/null; then
+            info "fzfのキーバインドとファジーコンプリートをセットアップしています..."
+            if "$(brew --prefix)"/opt/fzf/install --key-bindings --completion --no-update-rc --no-bash --no-fish 2>&1 || true; then
+                # セットアップ成功確認（~/.fzf.zshが作成されているかチェック）
+                if [ -f "$HOME/.fzf.zsh" ]; then
+                    success "fzfのセットアップが完了しました"
+                    echo ""
+                    info "使用可能なキーバインド:"
+                    echo "  Ctrl+R: コマンド履歴検索"
+                    echo "  Ctrl+T: ファイル検索"
+                    echo "  Alt+C:  ディレクトリ移動"
+                    echo ""
+                else
+                    warning "fzfのセットアップに失敗した可能性があります"
+                    info "手動で設定する場合は、以下を実行してください:"
+                    echo "  \$(brew --prefix)/opt/fzf/install"
+                fi
+            fi
+        fi
     fi
 else
     info "fzfのインストールをスキップしました"
